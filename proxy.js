@@ -19,39 +19,35 @@ function merge(a, b) {
 function filterContent(list, ids) {
     for(var i = 0, len = list.length; i < len; i++) {
         var idx = list[i].childNodes()[1];
+        if(!idx) continue;
         var attr= idx.attr("data-root-id");
+
         if(ids.indexOf(attr.value()) != -1) {
             console.log("removed: " + attr.value());
             attr.remove(); // この行を消してはいけない。lxmljsのバグでGC時に死ぬ
             idx.remove();
+        } else {
+            console.log("added: " + attr.value());
+            ids.push(attr.value());
         }
     }
-}
-
-function postIds(list) {
-    var ids = [];
-    
-    for(var i = 0, len = list.length; i < len; i++) {
-        var idx = list[i].get('./div');
-        if(!idx) continue;
-        console.log("added: "+idx.attr("data-root-id").value());
-        ids.push(idx.attr("data-root-id").value());
-    }
-    return ids;
+    return {ids:ids, xml: list};
 }
 
 function convertIntoHTML5(txt) {
     txt = txt.replace(/<!\[CDATA\[/g, "").replace(/\]\]>/g, "");
-    txt = txt.replace(/<script([^\/>]+(\/[^\/>]*)*)\/>/g, "<script$1></script>");
+    txt = txt.replace(/<(\w+)( [^\/>]+(\/[^\/>]*)*)?\/>/g, "<$1$2></$1>");
+    txt = txt.replace(/<\/?(?:html|body)>/g, "");
     txt = txt.slice(txt.indexOf('\n')+1);
-    return txt
+    txt = txt.slice(txt.indexOf('\n')+1);
+    return txt;
 }
 
 function scrape(body) {
     var xml = libxmljs.parseHtml(body);
     var lis = xml.find('//li[@class="post_container"]');
-    filterContent(lis, ids);
-    ids = merge(ids, postIds(lis));
+    f = filterContent(lis, ids);
+//    ids = f.ids; lis = f.xml;
     console.log("ids length:" + ids.length);
     return convertIntoHTML5(xml.toString());
 }
@@ -77,11 +73,12 @@ function tumblrRequest(serverRequest, serverResponse, ajaxmode) {
                     ret = scrape(body);
                 } else {
                     body = body.toString();
-                    var inline = body.slice(body.indexOf("<!-- START POSTS -->"), body.indexOf("<!-- END POSTS -->"))
+                    var inline = body.replace(/[\s\S]+<!-- START POSTS -->([\s\S]+)<!-- END POSTS -->[\s\S]+/, "$1");
                     ret = scrape(inline);
-                    ret = body.replace(/<!-- START POSTS -->.*<!-- END POSTS -->/, ret);
+                    console.log(ret);
+                    ret = body.replace(/<!-- START POSTS -->[\s\S]+<!-- END POSTS -->/, "<!-- START POSTS -->" + ret + "<!-- END POSTS -->");
                 }
-                console.log("hoge");
+
                 zlib.gzip(ret, function(err, buf) {
                     serverResponse.write(buf);
                     serverResponse.end();
