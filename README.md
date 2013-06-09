@@ -19,7 +19,7 @@ How to Use
 
     npm install libxmljs
 
-2. run this script
+2. run `proxy.js`
 
     node proxy.js
 
