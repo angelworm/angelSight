@@ -1,28 +1,22 @@
+// -*- flymake-gjshint: jshint; -*-
+/* jshint forin:true, noarg:true, noempty:true, eqeqeq:true, bitwise:true, strict:false, undef:true, unused:true, curly:true, node:true, indent:4, maxerr:100 */
 var url  = require('url'),
     sys  = require('sys'),
     http = require('http'),
     libxmljs = require("libxmljs"),
     zlib     = require('zlib'),
-    Buffer   = require('buffer').Buffer;
+    buffer   = require('buffer');
 
 var port = 8555;
 var ids = [];
 
-function merge(a, b) {
-    var r = a.slice(0);
-    b.map(function(e) {
-        if(r.indexOf(e) == -1) r.push(e);
-    });
-    return r;
-}
-
 function filterContent(list, ids) {
     for(var i = 0, len = list.length; i < len; i++) {
         var idx = list[i].childNodes()[1];
-        if(!idx) continue;
+        if(!idx){ continue; }
         var attr= idx.attr("data-root-id");
 
-        if(ids.indexOf(attr.value()) != -1) {
+        if(ids.indexOf(attr.value()) !== -1) {
             console.log("removed: " + attr.value());
             attr.remove(); // この行を消してはいけない。lxmljsのバグでGC時に死ぬ
             idx.remove();
@@ -46,8 +40,7 @@ function convertIntoHTML5(txt) {
 function scrape(body) {
     var xml = libxmljs.parseHtml(body);
     var lis = xml.find('//li[@class="post_container"]');
-    f = filterContent(lis, ids);
-//    ids = f.ids; lis = f.xml;
+    filterContent(lis, ids);
     console.log("ids length:" + ids.length);
     return convertIntoHTML5(xml.toString());
 }
@@ -55,7 +48,6 @@ function scrape(body) {
 function tumblrRequest(serverRequest, serverResponse, ajaxmode) {
     var requestUrl = url.parse(serverRequest.url);
     var buf = [];
-    var gunzip = false;
     
     function requestCallback(response) {
         serverResponse.writeHead(response.statusCode, response.headers);
@@ -63,7 +55,7 @@ function tumblrRequest(serverRequest, serverResponse, ajaxmode) {
             buf.push(chunk);
         });
         response.on('end', function() {
-            zlib.gunzip(Buffer.concat(buf), function(err, body){
+            zlib.gunzip(buffer.Buffer.concat(buf), function(err, body){
                 if(!!err) {
                     console.log("tumblr decode error: "+err);
                     return;
@@ -75,7 +67,6 @@ function tumblrRequest(serverRequest, serverResponse, ajaxmode) {
                     body = body.toString();
                     var inline = body.replace(/[\s\S]+<!-- START POSTS -->([\s\S]+)<!-- END POSTS -->[\s\S]+/, "$1");
                     ret = scrape(inline);
-                    console.log(ret);
                     ret = body.replace(/<!-- START POSTS -->[\s\S]+<!-- END POSTS -->/, "<!-- START POSTS -->" + ret + "<!-- END POSTS -->");
                 }
 
@@ -150,9 +141,8 @@ function normalRequest(serverRequest, serverResponse) {
 
 http.createServer(function(serverRequest, serverResponse) {
     var requestUrl = url.parse(serverRequest.url);
-    var body = [];
 
-    if(requestUrl.href.match(/http:\/\/www\.tumblr\.com\/dashboard(\/\d+)*$/)) {
+    if(requestUrl.href.match(/^http:\/\/www\.tumblr\.com\/dashboard(\/\d+)*$/)) {
         console.log("***:" + requestUrl.href);
         if(!!serverRequest.headers["x-requested-with"]) {
             console.log("****:Ajax mode");
