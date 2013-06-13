@@ -174,7 +174,7 @@ function loadCache(opts, callback) {
     } else {
         readJSON(opts["cache"], function(cache, err) {
             if(!!err) {
-                if(err["code"] == 'ENOENT') return null;
+                if(err["code"] == 'ENOENT') return callback(null);
                 console.log(err);
                 return process.abort();
             } else {
