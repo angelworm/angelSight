@@ -3,13 +3,18 @@
 var url  = require('url'),
     sys  = require('sys'),
     http = require('http'),
+    fs   = require('fs'),
     libxmljs = require("libxmljs"),
     zlib     = require('zlib'),
     buffer   = require('buffer');
 
-var port = 8555;
 var ids = [];
+var opts = {
+    port: 8555
+};
 
+// list: [li]
+// ids: [data-post-id]
 function filterContent(list, ids) {
     for(var i = 0, len = list.length; i < len; i++) {
         var idx = list[i].childNodes()[1];
@@ -28,6 +33,7 @@ function filterContent(list, ids) {
     return {ids:ids, xml: list};
 }
 
+// lxml output -> original tumblr format html
 function convertIntoHTML5(txt) {
     txt = txt.replace(/<!\[CDATA\[/g, "").replace(/\]\]>/g, "");
     txt = txt.replace(/<(\w+)( [^\/>]+(\/[^\/>]*)*)?\/>/g, "<$1$2></$1>");
@@ -65,14 +71,16 @@ function tumblrRequest(serverRequest, serverResponse, ajaxmode) {
                     ret = scrape(body);
                 } else {
                     body = body.toString();
-                    var inline = body.replace(/[\s\S]+<!-- START POSTS -->([\s\S]+)<!-- END POSTS -->[\s\S]+/, "$1");
+					var re = /<!-- START POSTS -->([\s\S]+)<!-- END POSTS -->/;
+                    var inline = body.match(re)[1];
                     ret = scrape(inline);
-                    ret = body.replace(/<!-- START POSTS -->[\s\S]+<!-- END POSTS -->/, "<!-- START POSTS -->" + ret + "<!-- END POSTS -->");
+                    ret = body.replace(re, "<!-- START POSTS -->" + ret + "<!-- END POSTS -->");
                 }
 
                 zlib.gzip(ret, function(err, buf) {
                     serverResponse.write(buf);
                     serverResponse.end();
+                    saveCache(opts["cache"], function(){});
                 });
             });
         });
@@ -139,20 +147,84 @@ function normalRequest(serverRequest, serverResponse) {
     });
 }
 
-http.createServer(function(serverRequest, serverResponse) {
-    var requestUrl = url.parse(serverRequest.url);
-
-    if(requestUrl.href.match(/^http:\/\/www\.tumblr\.com\/dashboard(\/\d+)*$/)) {
-        console.log("***:" + requestUrl.href);
-        if(!!serverRequest.headers["x-requested-with"]) {
-            console.log("****:Ajax mode");
-            tumblrRequest(serverRequest, serverResponse, true);
+function readJSON (path, callback) {
+    try{ fs.readFile(path, 'utf8', function(err, data) {
+        if(!!err) {
+            return callback(null, err);
         } else {
-            tumblrRequest(serverRequest, serverResponse, false);
+            try {
+                return callback(JSON.parse(data));
+            } catch(e) {
+                return callback(null, e);
+            }
         }
-    } else {
-        normalRequest(serverRequest, serverResponse);
+    });} catch(e) {
+        callback(null, e);
     }
-}).listen(port);
+}
 
-sys.puts('Server listening on port ' + port);
+function saveCache(path, callback) {
+    if(!!path)
+        fs.writeFile(path, JSON.stringify(ids), callback);
+}
+
+function loadCache(opts, callback) {
+    if(!("cache" in opts)) {
+        return callback(null);
+    } else {
+        readJSON(opts["cache"], function(cache, err) {
+            if(!!err) {
+                if(err["code"] == 'ENOENT') return null;
+                console.log(err);
+                return process.abort();
+            } else {
+                ids = cache || [];
+                return callback(cache);
+            }
+        });
+    }
+
+}
+
+function loadOpts(nextTo) {
+    var argv = process.argv, path;
+    if(argv.indexOf("-h") != -1) {
+        console.log("Useage :", argv[1], "[options.json]");
+        process.exit();
+    } 
+
+    path = (argv.length < 3) ? "options.json" : argv[2];
+    readJSON(path, function(conf, err) {
+        if(!!err) {
+            console.log(err);
+            process.abort();
+        }
+        for(var i in conf) {
+            opts[i] = conf[i];
+            console.log(i, ":", conf[i]);
+        }
+
+        loadCache(opts, function(){nextTo(opts);});
+    });
+    
+}
+
+loadOpts(function(opts) {
+    http.createServer(function(serverRequest, serverResponse) {
+        var requestUrl = url.parse(serverRequest.url);
+
+        if(requestUrl.href.match(/^http:\/\/www\.tumblr\.com\/dashboard(\/\d+)*$/)) {
+            console.log("***:" + requestUrl.href);
+            if(!!serverRequest.headers["x-requested-with"]) {
+                console.log("****:Ajax mode");
+                tumblrRequest(serverRequest, serverResponse, true);
+            } else {
+                tumblrRequest(serverRequest, serverResponse, false);
+            }
+        } else {
+            normalRequest(serverRequest, serverResponse);
+        }
+    }).listen(opts.port);
+
+    sys.puts('Server listening on port ' + opts.port);
+});
