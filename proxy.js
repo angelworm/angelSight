@@ -6,7 +6,8 @@ var url  = require('url'),
     fs   = require('fs'),
     libxmljs = require("libxmljs"),
     zlib     = require('zlib'),
-    buffer   = require('buffer');
+    buffer   = require('buffer'),
+    C$       = require('./C_doller.js');
 
 var ids = [];
 var opts = {
@@ -148,17 +149,19 @@ function normalRequest(serverRequest, serverResponse) {
 }
 
 function readJSON (path, callback) {
-    try{ fs.readFile(path, 'utf8', function(err, data) {
-        if(!!err) {
-            return callback(null, err);
-        } else {
-            try {
-                return callback(JSON.parse(data));
-            } catch(e) {
-                return callback(null, e);
+    try{ 
+        fs.readFile(path, 'utf8', function(err, data) {
+            if(!!err) {
+                return callback(null, err);
+            } else {
+                try {
+                    return callback(JSON.parse(data));
+                } catch(e) {
+                    return callback(null, e);
+                }
             }
-        }
-    });} catch(e) {
+        });
+    } catch(e) {
         callback(null, e);
     }
 }
@@ -179,6 +182,12 @@ function loadCache(opts, callback) {
                 return process.abort();
             } else {
                 ids = cache || [];
+                var exclude = opts["exclude"] || [];
+                
+                ids = ids.filter(function(id) {
+                    return exclude.indexOf(id) == -1;
+                });
+                
                 return callback(cache);
             }
         });
@@ -186,7 +195,7 @@ function loadCache(opts, callback) {
 
 }
 
-function loadOpts(nextTo) {
+function loadOpts(callback) {
     var argv = process.argv, path;
     if(argv.indexOf("-h") != -1) {
         console.log("Useage :", argv[1], "[options.json]");
@@ -204,12 +213,12 @@ function loadOpts(nextTo) {
             console.log(i, ":", conf[i]);
         }
 
-        loadCache(opts, function(){nextTo(opts);});
+        loadCache(opts, function(){callback(opts);});
     });
     
 }
 
-loadOpts(function(opts) {
+C$(loadOpts).chain(function(opts) {    
     http.createServer(function(serverRequest, serverResponse) {
         var requestUrl = url.parse(serverRequest.url);
 
@@ -227,4 +236,4 @@ loadOpts(function(opts) {
     }).listen(opts.port);
 
     sys.puts('Server listening on port ' + opts.port);
-});
+})();
