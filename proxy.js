@@ -26,6 +26,8 @@ function filterContent(list, ids) {
             console.log("removed: " + attr.value());
             attr.remove(); // この行を消してはいけない。lxmljsのバグでGC時に死ぬ
             idx.remove();
+        } else if (opts["exclude"].indexOf(attr.value()) != -1) {
+            console.log("defilterd: " + attr.value());
         } else {
             console.log("added: " + attr.value());
             ids.push(attr.value());
@@ -182,10 +184,9 @@ function loadCache(opts, callback) {
                 return process.abort();
             } else {
                 ids = cache || [];
-                var exclude = opts["exclude"] || [];
                 
                 ids = ids.filter(function(id) {
-                    return exclude.indexOf(id) == -1;
+                    return opts["exclude"].indexOf(id) == -1;
                 });
                 
                 return callback(cache);
@@ -213,12 +214,18 @@ function loadOpts(callback) {
             console.log(i, ":", conf[i]);
         }
 
+        opts["exclude"] = opts["exclude"] || [];
+        opts["exclude"] = opts["exclude"].map(function(e) {
+            return e.toString();
+        });
+
         loadCache(opts, function(){callback(opts);});
     });
     
 }
 
-C$(loadOpts).chain(function(opts) {    
+C$(loadOpts).chain(function(opts_) {    
+    opts = opts_;
     http.createServer(function(serverRequest, serverResponse) {
         var requestUrl = url.parse(serverRequest.url);
 

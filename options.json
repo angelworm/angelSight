@@ -1,4 +1,5 @@
 {
     "port": 8555,
-    "cache": "caches.json"
+    "cache": "caches.json",
+    "exclude": [42303697]
 }
