@@ -1,6 +1,6 @@
 {
     "port": 8555,
     "filter.cache": "caches.json",
-    "filter.post_type": ["quote"],
+    "filter.post_type": ["ask"],
     "exclude.id": [42303697]
 }
