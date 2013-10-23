@@ -69,7 +69,6 @@ var C$ = function(f, ccand) {
             rcback.apply(this, args);
         }, ccand);
 
-        console.log(function_arg);
         return f.apply(this, function_arg);
     };
 
