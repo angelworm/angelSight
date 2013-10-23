@@ -1,5 +1,6 @@
 {
     "port": 8555,
-    "cache": "caches.json",
-    "exclude": [42303697]
+    "filter.cache": "caches.json",
+    "filter.post_type": ["quote"],
+    "exclude.id": [42303697]
 }

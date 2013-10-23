@@ -20,15 +20,26 @@ function filterContent(list, ids) {
     for(var i = 0, len = list.length; i < len; i++) {
         var idx = list[i].childNodes()[1];
         if(!idx){ continue; }
-        var attr= idx.attr("data-root-id");
+        var attr = idx.attr("data-root-id");
+        var post_type = idx.attr("data-type");
 
         if(ids.indexOf(attr.value()) !== -1) {
+            // 既読posts
             console.log("removed: " + attr.value());
             attr.remove(); // この行を消してはいけない。lxmljsのバグでGC時に死ぬ
+            post_type.remove();// 同上
             idx.remove();
-        } else if (opts["exclude"].indexOf(attr.value()) != -1) {
+        } else if (opts['exclude.id'].indexOf(attr.value()) != -1) {
+            // 保護posts
             console.log("defilterd: " + attr.value());
+        } else if (opts['filter.post_type'].indexOf(post_type.value()) != -1) {
+            // 除外type
+            console.log("removed by type(" + post_type.value() + "): " + attr.value());
+            attr.remove();
+            post_type.remove();
+            idx.remove();
         } else {
+            // その他(表示)
             console.log("added: " + attr.value());
             ids.push(attr.value());
         }
@@ -83,7 +94,7 @@ function tumblrRequest(serverRequest, serverResponse, ajaxmode) {
                 zlib.gzip(ret, function(err, buf) {
                     serverResponse.write(buf);
                     serverResponse.end();
-                    saveCache(opts["cache"], function(){});
+                    saveCache(opts["filter.cache"], function(){});
                 });
             });
         });
@@ -169,8 +180,9 @@ function readJSON (path, callback) {
 }
 
 function saveCache(path, callback) {
-    if(!!path)
+    if(!!path) {
         fs.writeFile(path, JSON.stringify(ids), callback);
+    }
 }
 
 function loadCache(opts, callback) {
