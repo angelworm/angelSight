@@ -14,11 +14,54 @@ var opts = {
     port: 8555
 };
 
-// list: [li]
+function attribute(elm, attr, val) {
+    var a = elm.attr(attr);
+    var ret = undefined;
+    
+    if(!val) {
+        ret = a.value();
+    } else {
+        a.value(val);
+    }
+    a.remove();
+    return ret;
+}
+
+// list: [<li>]
+function diplayPreviousFirstPost(list) {
+    for(var i = 0, len = list.length; i < len; i++) {
+        var idx = list[i].childNodes()[1]; // li > div
+        if(!idx){ continue; }
+        var pid = attribute(idx, "data-post-id");
+
+        if(!opts["internal.first_post.curr"]){
+            console.log("pid:", pid);
+            opts["internal.first_post.curr"] = pid;
+        }
+
+        if(opts["internal.first_post.prev"] == pid) {
+            console.log("add");
+            var li = list[i].clone();
+            var disp = li.childNodes()[1];
+            li.childNodes()[1].attr({"data-root-id": "0", "data-type": "angelSight"});
+
+            disp.get('div[@class="post_wrapper"]').remove();
+            var elm = disp.node('div');
+            elm.attr({"class": "post_wrapper"});
+            elm.text("死");
+
+            list[i].addPrevSibling(li);
+
+        }
+    }
+
+}
+
+// list: [<li>]
 // ids: [data-post-id]
 function filterContent(list, ids) {
     for(var i = 0, len = list.length; i < len; i++) {
-        var idx = list[i].childNodes()[1];
+        var idx = list[i].childNodes()[1]; // li > div
         if(!idx){ continue; }
         var attr = idx.attr("data-root-id");
         var post_type = idx.attr("data-type");
@@ -60,6 +103,7 @@ function convertIntoHTML5(txt) {
 function scrape(body) {
     var xml = libxmljs.parseHtml(body);
     var lis = xml.find('//li[@class="post_container"]');
+    diplayPreviousFirstPost(lis);
     filterContent(lis, ids);
     console.log("ids length:" + ids.length);
     return convertIntoHTML5(xml.toString());
@@ -250,6 +294,11 @@ C$(loadOpts).chain(function(opts_) {
                 console.log("****:Ajax mode");
                 tumblrRequest(serverRequest, serverResponse, true);
             } else {
+                opts["internal.first_post.prev"] = opts["internal.first_post.curr"] || 0;
+                opts["internal.first_post.curr"] = 0;
+                console.log("prev:", opts["internal.first_post.prev"]);
+                console.log("curr:", opts["internal.first_post.curr"]);
+
                 tumblrRequest(serverRequest, serverResponse, false);
             }
         } else {
