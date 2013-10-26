@@ -229,26 +229,22 @@ function saveCache(path, callback) {
     }
 }
 
-function loadCache(opts, callback) {
-    if(!("cache" in opts)) {
-        return callback(null);
-    } else {
-        readJSON(opts["filter.cache"], function(cache, err) {
-            if(!!err) {
-                if(err["code"] == 'ENOENT') return callback(null);
-                console.log(err);
-                return process.abort();
-            } else {
-                ids = cache || [];
-                
-                ids = ids.filter(function(id) {
-                    return opts["exclude.id"].indexOf(id) == -1;
-                });
-                
-                return callback(cache);
-            }
-        });
-    }
+function loadCache(path, callback) {
+    readJSON(opts["filter.cache"], function(cache, err) {
+        if(!!err) {
+            console.log(err);
+            if(err["code"] == 'ENOENT') return callback(null);
+            return process.abort();
+        } else {
+            ids = cache || [];
+            
+            ids = ids.filter(function(id) {
+                return opts["exclude.id"].indexOf(id) == -1;
+            });
+            
+            return callback(cache);
+        }
+    });
 }
 
 function loadOpts(callback) {
@@ -278,7 +274,7 @@ function loadOpts(callback) {
             opts["filter.post_type"].push("angelSight");
         }
 
-        loadCache(opts, function(){callback(opts);});
+        loadCache(opts["filter.cache"], function(){callback(opts);});
     });
     
 }
